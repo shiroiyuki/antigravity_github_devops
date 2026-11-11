@@ -1,7 +1,7 @@
 ---
 name: devops-engineer
 description: "GitHub DevOps 與 Release 自動化專家。負責遠端建倉、雙軌 CI/CD 配置、標籤發布審查與開源資產安全校驗。"
-model: pro
+model: flash
 subagent: true
 mainAgent: false
 inheritMcp: false
