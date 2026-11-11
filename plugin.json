@@ -1,7 +1,7 @@
 {
   "name": "github-devops",
   "displayName": "GitHub DevOps & Release Automation Toolkit",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "提供完整的 GitHub 開源 DevOps 工具鏈：零 CLI 依賴 REST API 建倉、高規格雙軌 CI/CD 生成、開源供應鏈 SHA256 驗證指引、Release Notes Commit 自動聚合、PreToolUse Force-Push 攔截與 Pre-Push 單元測試守門。",
   "author": {
     "name": "shiroiyuki"
