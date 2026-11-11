@@ -1,0 +1,23 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Subagent logs
+.agents/logs/
+
+# Environments & secrets
+.env
+.env.*
+*.pem
+*.key
+id_rsa*
+
+# Release artifacts
+*.tar.gz
+*.tar.gz.sha256
+release_notes.md
+
+# Virtual environments
+venv/
+.venv/
