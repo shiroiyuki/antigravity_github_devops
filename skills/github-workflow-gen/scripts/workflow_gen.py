@@ -104,8 +104,8 @@ jobs:
           REPO_NAME="${{ github.event.repository.name }}"
           ARCHIVE_NAME="${REPO_NAME}-${VERSION}.tar.gz"
           
-          # 排除 git 目錄打包
-          tar --exclude='.git' --exclude='.github' -czvf "${ARCHIVE_NAME}" .
+          # 排除 git 目錄與正在產生的壓縮檔，避免 "file changed as we read it" 錯誤
+          tar --exclude='.git' --exclude='.github' --exclude='*.tar.gz' --exclude='*.sha256' -czvf "${ARCHIVE_NAME}" .
           sha256sum "${ARCHIVE_NAME}" > "${ARCHIVE_NAME}.sha256"
 
       - name: Create Release
