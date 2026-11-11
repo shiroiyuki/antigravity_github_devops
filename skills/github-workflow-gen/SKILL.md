@@ -9,13 +9,13 @@ description: "一鍵在專案注入高規格 GitHub Actions CI/CD 流水線 (.gi
 
 ## 執行命令
 
-遵守雙層動態路徑解析與全域 Python 虛擬環境規範：
+遵守雙層動態路徑解析規範：
 
 ```bash
 PLUGIN_ROOT="$([ -d .agents/plugins/github-devops ] && echo .agents/plugins/github-devops || echo ~/.gemini/config/plugins/github-devops)"
 WORKFLOW_GEN_SCRIPT="$PLUGIN_ROOT/skills/github-workflow-gen/scripts/workflow_gen.py"
 
-~/gemini_py3_env/bin/python "$WORKFLOW_GEN_SCRIPT" [--target <project-dir>] [--type <python|generic>]
+python3 "$WORKFLOW_GEN_SCRIPT" [--target <project-dir>] [--type <python|generic>]
 ```
 
 ## 功能特性

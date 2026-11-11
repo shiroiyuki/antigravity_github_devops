@@ -21,8 +21,14 @@ def get_github_token() -> tuple[str, str]:
     if token:
         return token, ""
 
-    # 2. 讀取 ~/.config/gh/hosts.yml
-    hosts_file = Path.home() / ".config" / "gh" / "hosts.yml"
+    # 2. 讀取 ~/.config/gh/hosts.yml（支援 GH_CONFIG_DIR 與 XDG_CONFIG_HOME）
+    gh_config_dir = os.environ.get("GH_CONFIG_DIR")
+    if gh_config_dir:
+        hosts_file = Path(gh_config_dir) / "hosts.yml"
+    else:
+        xdg_config = os.environ.get("XDG_CONFIG_HOME")
+        base_dir = Path(xdg_config) if xdg_config else Path.home() / ".config"
+        hosts_file = base_dir / "gh" / "hosts.yml"
     if hosts_file.exists():
         try:
             content = hosts_file.read_text(encoding="utf-8")

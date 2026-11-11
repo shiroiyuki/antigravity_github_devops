@@ -58,4 +58,4 @@ description: "當建立 GitHub 遠端倉庫、設定 GitHub Actions CI/CD 流水
   ```bash
   PLUGIN_ROOT="$([ -d .agents/plugins/github-devops ] && echo .agents/plugins/github-devops || echo ~/.gemini/config/plugins/github-devops)"
   ```
-- Python 直譯器一律調用全域環境：`~/gemini_py3_env/bin/python`。
+- Python 直譯器直接調用 `python3`，依託 Antigravity 生命週期鉤子自動轉導至當前最合適的直譯器（或使用當前虛擬環境），嚴禁寫死特定使用者路徑。

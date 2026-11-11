@@ -61,13 +61,13 @@ antigravity_github_devops/
 PLUGIN_ROOT="$([ -d .agents/plugins/github-devops ] && echo .agents/plugins/github-devops || echo ~/.gemini/config/plugins/github-devops)"
 
 # 調用建倉技能
-~/gemini_py3_env/bin/python "$PLUGIN_ROOT/skills/github-repo-init/scripts/repo_ctl.py" --name <repo-name>
+python3 "$PLUGIN_ROOT/skills/github-repo-init/scripts/repo_ctl.py" --name <repo-name>
 
 # 注入雙軌 CI/CD 流水線
-~/gemini_py3_env/bin/python "$PLUGIN_ROOT/skills/github-workflow-gen/scripts/workflow_gen.py"
+python3 "$PLUGIN_ROOT/skills/github-workflow-gen/scripts/workflow_gen.py"
 
 # 版本發布管理
-~/gemini_py3_env/bin/python "$PLUGIN_ROOT/skills/github-release-manager/scripts/release_helper.py" tag v1.0.0 --push
+python3 "$PLUGIN_ROOT/skills/github-release-manager/scripts/release_helper.py" tag v1.0.0 --push
 ```
 
 ---
@@ -77,7 +77,7 @@ PLUGIN_ROOT="$([ -d .agents/plugins/github-devops ] && echo .agents/plugins/gith
 本外掛具備完整的白箱單元測試覆蓋：
 
 ```bash
-~/gemini_py3_env/bin/python run_tests.py
+python3 run_tests.py
 ```
 
 測試涵蓋：

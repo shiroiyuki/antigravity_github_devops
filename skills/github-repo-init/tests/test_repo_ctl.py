@@ -38,6 +38,43 @@ class TestRepoCtl(unittest.TestCase):
             else:
                 os.environ.pop("GITHUB_TOKEN", None)
 
+    def test_get_github_token_hosts_file_xdg(self):
+        old_token = os.environ.pop("GITHUB_TOKEN", None)
+        old_gh_config = os.environ.get("GH_CONFIG_DIR")
+        old_xdg = os.environ.get("XDG_CONFIG_HOME")
+        try:
+            # 測試 GH_CONFIG_DIR
+            custom_gh_dir = self.test_path / "custom_gh"
+            custom_gh_dir.mkdir()
+            hosts_file = custom_gh_dir / "hosts.yml"
+            hosts_file.write_text("github.com:\n  user: testuser\n  oauth_token: gho_test_custom_token\n", encoding="utf-8")
+            
+            os.environ["GH_CONFIG_DIR"] = str(custom_gh_dir)
+            token, user = repo_ctl.get_github_token()
+            self.assertEqual(token, "gho_test_custom_token")
+            self.assertEqual(user, "testuser")
+
+            # 測試 XDG_CONFIG_HOME
+            os.environ.pop("GH_CONFIG_DIR", None)
+            xdg_dir = self.test_path / "xdg"
+            (xdg_dir / "gh").mkdir(parents=True)
+            (xdg_dir / "gh" / "hosts.yml").write_text("github.com:\n  user: xdguser\n  oauth_token: gho_xdg_token\n", encoding="utf-8")
+            os.environ["XDG_CONFIG_HOME"] = str(xdg_dir)
+            token, user = repo_ctl.get_github_token()
+            self.assertEqual(token, "gho_xdg_token")
+            self.assertEqual(user, "xdguser")
+        finally:
+            if old_token is not None:
+                os.environ["GITHUB_TOKEN"] = old_token
+            if old_gh_config is not None:
+                os.environ["GH_CONFIG_DIR"] = old_gh_config
+            else:
+                os.environ.pop("GH_CONFIG_DIR", None)
+            if old_xdg is not None:
+                os.environ["XDG_CONFIG_HOME"] = old_xdg
+            else:
+                os.environ.pop("XDG_CONFIG_HOME", None)
+
     def test_init_local_git_repo(self):
         # 測試在空目錄初始化 git
         repo_ctl.init_local_repo(self.test_path)

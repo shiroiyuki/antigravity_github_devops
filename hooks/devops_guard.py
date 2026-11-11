@@ -104,11 +104,8 @@ def check_pre_push_tests(cmd: str, cwd: str) -> str:
     if not test_dir:
         return ""
 
-    # 解析可用的 Python 直譯器
-    py_exec = sys.executable
-    venv_py = Path.home() / "gemini_py3_env" / "bin" / "python"
-    if venv_py.is_file() and os.access(venv_py, os.X_OK):
-        py_exec = str(venv_py)
+    # 解析可用的 Python 直譯器（同源直譯器優先，防禦性回退系統 python3）
+    py_exec = sys.executable or "python3"
 
     try:
         res = subprocess.run(
