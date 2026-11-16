@@ -11,7 +11,66 @@ import subprocess
 import json
 import urllib.request
 import urllib.error
+from datetime import datetime, timezone
 from pathlib import Path
+
+
+def get_visibility_cache_path() -> Path:
+    """動態解析倉庫可見度快取路徑（ENV -> XDG_CACHE_HOME -> ~/.cache）"""
+    explicit = os.environ.get("ANTIGRAVITY_DEVOPS_CACHE", "").strip()
+    if explicit:
+        return Path(os.path.expanduser(explicit))
+    xdg_cache = os.environ.get("XDG_CACHE_HOME", "").strip()
+    base = Path(os.path.expanduser(xdg_cache)) if xdg_cache else Path.home() / ".cache"
+    return base / "antigravity" / "github_repo_visibility.json"
+
+
+def update_visibility_cache(entries: dict, replace: bool = False) -> Path:
+    """更新本機倉庫 Public/Private 可見度快取"""
+    cache_path = get_visibility_cache_path()
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"updated_at": datetime.now(timezone.utc).isoformat(), "repos": {}}
+    if not replace and cache_path.is_file():
+        try:
+            existing = json.loads(cache_path.read_text(encoding="utf-8"))
+            if isinstance(existing, dict) and isinstance(existing.get("repos"), dict):
+                payload["repos"] = existing["repos"]
+        except Exception:
+            pass
+    payload["repos"].update(entries)
+    cache_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return cache_path
+
+
+def sync_visibility_cache(token: str) -> Path:
+    """從 GitHub API 拉取擁有者所有倉庫之可見度並寫入本機快取"""
+    repos_map = {}
+    page = 1
+    while True:
+        url = f"https://api.github.com/user/repos?per_page=100&affiliation=owner&page={page}"
+        req = urllib.request.Request(
+            url,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "antigravity-devops-toolkit",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            batch = json.load(resp)
+        if not batch:
+            break
+        for repo in batch:
+            full_name = repo.get("full_name")
+            if full_name:
+                repos_map[full_name] = {
+                    "name": repo.get("name", full_name.split("/")[-1]),
+                    "private": bool(repo.get("private", False)),
+                }
+        if len(batch) < 100:
+            break
+        page += 1
+    return update_visibility_cache(repos_map, replace=True)
 
 
 def get_github_token() -> tuple[str, str]:
@@ -117,12 +176,47 @@ def setup_remote_origin(repo_dir: Path, clone_url: str):
         print(f"✔ 已新增 remote 'origin' -> {clone_url}")
 
 
+def ensure_gitignore(repo_dir: Path) -> bool:
+    """若目錄尚無 .gitignore，建立包含機密與環境防護的預設 .gitignore"""
+    gi_path = repo_dir / ".gitignore"
+    if gi_path.exists():
+        return False
+    default_content = (
+        "# Environments & secrets\n"
+        ".env\n"
+        ".env.*\n"
+        "*hosts.yml\n"
+        "*hosts.yaml\n"
+        ".netrc\n"
+        "netrc\n"
+        ".loginInfo/\n"
+        "*.cookie\n"
+        "cookies.txt\n"
+        "*.pem\n"
+        "*.key\n"
+        "*.p12\n"
+        "*.pfx\n"
+        "id_rsa*\n\n"
+        "# Python & logs\n"
+        "__pycache__/\n"
+        "*.py[cod]\n"
+        "venv/\n"
+        ".venv/\n"
+        ".agents/logs/\n"
+    )
+    gi_path.write_text(default_content, encoding="utf-8")
+    return True
+
+
 def init_local_repo(repo_dir: Path, clone_url: str = ""):
     """初始化本地 git 並可選關聯 origin"""
     # 1. git init (若無)
     if not (repo_dir / ".git").is_dir():
         subprocess.run(["git", "init", "-b", "main"], cwd=str(repo_dir), check=True)
         print("✔ 本地目錄已初始化為 Git 倉庫 (main 分支)")
+
+    if ensure_gitignore(repo_dir):
+        print("✔ 已建立安全預設 .gitignore（涵蓋機密與虛擬環境排除規則）")
 
     # 2. 檢查 remote
     if clone_url:
@@ -135,9 +229,23 @@ def main():
     parser.add_argument("--desc", default="", help="倉庫描述")
     parser.add_argument("--private", action="store_true", help="設為私有倉庫（預設公開）")
     parser.add_argument("--dir", default=".", help="目標工作區目錄")
+    parser.add_argument("--sync-cache", action="store_true", help="同步帳號下所有倉庫的 Public/Private 可見度快取")
     parser.add_argument("--dry-run", action="store_true", help="預檢模式，不實際呼叫 API")
 
     args = parser.parse_args()
+
+    if args.sync_cache:
+        token, _ = get_github_token()
+        if not token:
+            sys.stderr.write("錯誤: 未能檢測到有效的 GitHub Token。請先登入 gh 或配置環境變數 GITHUB_TOKEN。\n")
+            sys.exit(1)
+        if args.dry_run:
+            print(f"[Dry-run] 將同步 GitHub 倉庫可見度至: {get_visibility_cache_path()}")
+            return
+        cache_file = sync_visibility_cache(token)
+        print(f"✔ 已同步 GitHub 倉庫可見度快取 -> {cache_file}")
+        return
+
     target_dir = Path(args.dir).resolve()
 
     repo_name = args.name or target_dir.name
@@ -172,6 +280,9 @@ def main():
         sys.exit(1)
     else:
         print(f"✔ 成功建立遠端倉庫: {res.get('html_url')}")
+        update_visibility_cache({
+            f"{user}/{repo_name}": {"name": repo_name, "private": bool(args.private)}
+        })
 
     # 2. 本地初始化與 remote 關聯
     init_local_repo(target_dir, clone_url)

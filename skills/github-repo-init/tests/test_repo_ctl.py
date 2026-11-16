@@ -80,10 +80,15 @@ class TestRepoCtl(unittest.TestCase):
         repo_ctl.init_local_repo(self.test_path)
         git_dir = self.test_path / ".git"
         self.assertTrue(git_dir.is_dir())
+        gi = self.test_path / ".gitignore"
+        self.assertTrue(gi.is_file())
+        self.assertIn(".env", gi.read_text(encoding="utf-8"))
 
-        # 測試再次執行不報錯
+        # 自訂 .gitignore 後再次執行不覆蓋
+        gi.write_text("# custom\n", encoding="utf-8")
         repo_ctl.init_local_repo(self.test_path)
         self.assertTrue(git_dir.is_dir())
+        self.assertEqual(gi.read_text(encoding="utf-8"), "# custom\n")
 
     def test_setup_remote_origin(self):
         repo_ctl.init_local_repo(self.test_path)
@@ -99,6 +104,23 @@ class TestRepoCtl(unittest.TestCase):
         repo_ctl.setup_remote_origin(self.test_path, new_url)
         res = subprocess.run(["git", "remote", "get-url", "origin"], cwd=self.test_dir, stdout=subprocess.PIPE, text=True)
         self.assertEqual(res.stdout.strip(), new_url)
+
+    def test_update_visibility_cache_env(self):
+        import json
+        cache_file = self.test_path / "cache" / "visibility.json"
+        old_cache = os.environ.get("ANTIGRAVITY_DEVOPS_CACHE")
+        try:
+            os.environ["ANTIGRAVITY_DEVOPS_CACHE"] = str(cache_file)
+            repo_ctl.update_visibility_cache({"owner/pub": {"name": "pub", "private": False}})
+            repo_ctl.update_visibility_cache({"owner/priv": {"name": "priv", "private": True}})
+            data = json.loads(cache_file.read_text(encoding="utf-8"))
+            self.assertFalse(data["repos"]["owner/pub"]["private"])
+            self.assertTrue(data["repos"]["owner/priv"]["private"])
+        finally:
+            if old_cache is not None:
+                os.environ["ANTIGRAVITY_DEVOPS_CACHE"] = old_cache
+            else:
+                os.environ.pop("ANTIGRAVITY_DEVOPS_CACHE", None)
 
 
 if __name__ == "__main__":

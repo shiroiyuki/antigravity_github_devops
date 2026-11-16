@@ -16,10 +16,11 @@ PLUGIN_ROOT="$([ -d .agents/plugins/github-devops ] && echo .agents/plugins/gith
 REPO_CTL_SCRIPT="$PLUGIN_ROOT/skills/github-repo-init/scripts/repo_ctl.py"
 
 python3 "$REPO_CTL_SCRIPT" --name <repo-name> [--private] [--desc "專案描述"]
+python3 "$REPO_CTL_SCRIPT" --sync-cache
 ```
 
 ## 功能特性
 1. **零外部 CLI 相依**：自動讀取本機 `~/.config/gh/hosts.yml` OAuth Token 或環境變數 `GITHUB_TOKEN`，直連 GitHub REST API。
 2. **自動 Git 初始化**：若當前工作區未初始化，自動執行 `git init -b main`。
 3. **安全綁定遠端**：自動設定 `origin` 為 `https://github.com/<user>/<repo>.git`。
-4. **防呆預檢**：若遠端已存在該倉庫，自動對齊遠端分支，不覆蓋破壞。
+4. **防呆預檢與可見度快取**：若遠端已存在該倉庫，自動對齊遠端分支，不覆蓋破壞；建倉或執行 `--sync-cache` 時同步寫入 Public/Private 快取供 `devops_guard.py` 離線查驗。
