@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Antigravity DevOps PreToolUse Guard (Lightweight Level 2)
+Antigravity DevOps PreToolUse Guard
 底層生命週期防線：
 1. 嚴禁 git force push（--force / -f / --force-with-lease）破壞遠端歷史。
 2. 嚴禁提交/推送敏感機密檔案、金鑰 Token、含帳密 URI 與個人本機路徑（deny）。
