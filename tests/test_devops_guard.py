@@ -53,7 +53,7 @@ class TestDevopsGuard(unittest.TestCase):
             tmp_path = Path(tmp_dir)
             subprocess.run(["git", "init"], cwd=tmp_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             f = tmp_path / "app.py"
-            f.write_text("DB = 'postgres://admin:SuperPass123@db.host:5432/prod'\n", encoding="utf-8")
+            f.write_text("DB = 'postgres://admin:SuperPass123@db.host:5432/prod'  # devops-guard: ignore\n", encoding="utf-8")  # devops-guard: ignore
             subprocess.run(["git", "add", "app.py"], cwd=tmp_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
             decision, reason = devops_guard.evaluate_secret_leak("git commit -m 'db'", tmp_dir)
@@ -127,7 +127,7 @@ class TestDevopsGuard(unittest.TestCase):
             tmp_path = Path(tmp_dir)
             subprocess.run(["git", "init"], cwd=tmp_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             (tmp_path / "settings.py").write_text(
-                'API_KEY = "xK9mP2vQ8nL4rT7wZ1bC6yF3"\n',
+                'API_KEY = "xK9mP2vQ8nL4rT7wZ1bC6yF3"\n',  # devops-guard: ignore
                 encoding="utf-8",
             )
             subprocess.run(["git", "add", "settings.py"], cwd=tmp_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

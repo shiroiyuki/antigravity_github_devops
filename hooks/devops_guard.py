@@ -355,11 +355,12 @@ def evaluate_secret_leak(cmd: str, cwd: str) -> Tuple[str, str]:
 
     # 2. 確定性金鑰與個人路徑掃描
     for filepath, line in added_lines:
-        if "devops-guard: ignore" in line:
+        in_test_file = is_test_filepath(filepath)
+        if in_test_file and "devops-guard: ignore" in line:
             continue
         for pattern, label in SENSITIVE_CONTENT_PATTERNS:
             if re.search(pattern, line):
-                if is_test_filepath(filepath):
+                if in_test_file:
                     ask_reasons.append(f"測試檔案 `{filepath}` 出現疑似 {label}")
                 else:
                     return (
@@ -392,7 +393,7 @@ def evaluate_secret_leak(cmd: str, cwd: str) -> Tuple[str, str]:
         sensitive_terms = load_sensitive_terms()
 
         for filepath, line in added_lines:
-            if "devops-guard: ignore" in line:
+            if is_test_filepath(filepath) and "devops-guard: ignore" in line:
                 continue
             for priv_name in private_names:
                 if not priv_name or len(priv_name) < 4 or priv_name == current_name:
