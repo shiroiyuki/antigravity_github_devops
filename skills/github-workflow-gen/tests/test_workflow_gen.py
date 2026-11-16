@@ -31,6 +31,7 @@ class TestWorkflowGen(unittest.TestCase):
 
         content = wf_file.read_text(encoding="utf-8")
         # 驗證關鍵步驟
+        self.assertIn("compileall", content)
         self.assertIn("Run Unit Tests", content)
         self.assertIn("Validate Standards", content)
         self.assertIn("Generate Release Notes from Commits", content)

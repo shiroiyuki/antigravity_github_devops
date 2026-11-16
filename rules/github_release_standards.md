@@ -59,3 +59,24 @@ description: "當建立 GitHub 遠端倉庫、設定 GitHub Actions CI/CD 流水
   PLUGIN_ROOT="$([ -d .agents/plugins/github-devops ] && echo .agents/plugins/github-devops || echo ~/.gemini/config/plugins/github-devops)"
   ```
 - Python 直譯器直接調用 `python3`，依託 Antigravity 生命週期鉤子自動轉導至當前最合適的直譯器（或使用當前虛擬環境），嚴禁寫死特定使用者路徑。
+
+---
+
+### 6. 標準 README 門面規範 (README & Documentation Standards)
+
+所有新建立或重構的 GitHub 專案與 Antigravity Plugin，交付前必須具備完整且結構統一的 `README.md`（可透過 `github-readme-gen` 技能一鍵生成）：
+1. **狀態徽章 (Badges)**：包含 CI 狀態、Release 版本（或 License）與平台標識。
+2. **架構樹與組件清單**：以目錄樹標示 `plugin.json`、`rules/`、`skills/`、`agents/`、`hooks/` 與 `tests/` 職責，並附各技能/規則用途矩陣。
+3. **零硬編碼使用與安裝指南**：提供 `PLUGIN_ROOT` 雙層解析範例、`install.sh`（`--global` / `--workspace` / `--symlink`）與相依套件安裝指令。
+4. **測試驗證與供應鏈安全**：列出完整單元測試、規範驗證指令與 Release `sha256sum -c` 校驗步驟。
+
+---
+
+### 7. 版本同步與發布確認閘門 (Version Sync & Release Confirmation Gate)
+
+1. **版號升版與首次交付必問發布**：
+   - 每當新建開源/私有倉庫完成首次推送，或修改 `plugin.json`（及專案版號設定）中的 `version` 欄位時，必須檢查是否已存在對應之 `v<version>` Git Tag。
+   - 若尚未發布該版號，Agent **必須在回報中主動提醒並詢問使用者是否要建立與推送 `v<version>` Tag**，嚴禁僅升版推送 `main` 卻遺漏發布提示。
+2. **發布人工確認閘門 (Human-in-the-Loop Release Gate)**：
+   - 建立並推送 `v*` Tag 會立即觸發遠端 CI 打包資產並正式發布 GitHub Release，屬於對外交付動作。
+   - **未經使用者明確確認前，嚴禁擅自執行 `git push origin v*`**；發起確認前應先說明目標倉庫、預計 Tag 版號與透過 `release_helper.py notes` 提取之變更摘要，獲使用者同意後方可執行發布。

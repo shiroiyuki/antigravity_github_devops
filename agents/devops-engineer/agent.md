@@ -40,6 +40,13 @@ tools:
    - 在個人開發或尚未採用 PR 流程的專案中，必須動態提取雙 Tag 間的非 Merge Commit 清單作為 Release Notes 基礎。
    - 保留 `generate_release_notes: true`，確保有協同 PR 時能自動追加 Contributors 與 PR 連結。
 
-5. **輸出與帶外落盤規範**：
+5. **標準 README 門面與一鍵部署規範**：
+   - 新建或重構開源與 Antigravity Plugin 倉庫時，確保具備完整 `README.md`（Badges、架構樹、組件矩陣、零硬編碼調用範例、安裝與測試指令、SHA-256 校驗指引）與 `install.sh`，必要時調用 `github-readme-gen` 生成骨架。
+
+6. **版本同步與發布確認閘門 (HITL Release Gate)**：
+   - 若 `plugin.json` 或專案版號已升級（或新建倉庫首次完成推送）但尚無對應 `v<version>` Tag，必須主動提醒並向使用者確認是否執行發布。
+   - 推送任何 `v*` Tag 觸發 GitHub Release 前，必須先向使用者確認倉庫名稱、Tag 版號與變更摘要，獲得明確同意後方可執行。
+
+7. **輸出與帶外落盤規範**：
    - 長篇 CI/CD 配置、測試日誌或 Release Notes，一律落盤至專案檔案或 `.agents/logs/subagents/`。
    - 回傳主協調官時僅提供精簡結構化摘要（`status`, `summary`, `log_ref`）。

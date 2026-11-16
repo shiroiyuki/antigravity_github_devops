@@ -44,6 +44,9 @@ jobs:
           if [ -f tests/requirements.txt ]; then pip install -r tests/requirements.txt; fi
           pip install pyyaml || true
 
+      - name: Verify Python Syntax
+        run: python -m compileall -q .
+
       - name: Run Unit Tests
         run: |
           if [ -f run_tests.py ]; then

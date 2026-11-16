@@ -14,18 +14,21 @@
 ```
 antigravity_github_devops/
 ├── plugin.json                 # 外掛套件清單 (Metadata & Display)
+├── assets/logo.svg             # 外掛圖示資產
 ├── hooks.json                  # PreToolUse 守護鉤子宣告 (Matcher: run_command)
 ├── hooks/
 │   └── devops_guard.py         # 底層安全防線 (Force-push, 敏感機密, Pre-push 測試)
 ├── rules/
-│   └── github_release_standards.md # 發布規範與供應鏈安全準則 (Trigger: model_decision)
+│   └── github_release_standards.md # 發布規範、README 標準與供應鏈安全準則 (Trigger: model_decision)
 ├── agents/
 │   └── devops-engineer/
-│       └── agent.md            # DevOps 專業工位人設 (Model: pro, Subagent)
+│       └── agent.md            # DevOps 專業工位人設 (Model: flash, Subagent)
 ├── skills/
 │   ├── github-repo-init/       # 零 CLI 依賴 REST API 建倉技能
 │   ├── github-workflow-gen/    # 標準雙軌 CI/CD 生成器技能
+│   ├── github-readme-gen/      # 標準 README 門面與架構文件生成器技能
 │   └── github-release-manager/ # 版本發布管理與 SHA-256 校驗技能
+├── install.sh                  # 一鍵全域 / 工作區 / 軟連結安裝腳本
 └── run_tests.py                # 統一多模組單元測試驅動器
 ```
 
@@ -42,11 +45,15 @@ antigravity_github_devops/
 - 自動打包發布資產，動態生成相容 `sha256sum -c` 的 `.tar.gz.sha256` 數位指紋檔案。
 - 動態提取雙標籤間 Commit 清單，徹底解決無 PR 時 Release 說明空洞的 GitHub 官方缺陷。
 
-### 3. 發布全流程管理 (`github-release-manager`)
+### 3. 標準 README 門面生成器 (`github-readme-gen`)
+- 自動掃描 `plugin.json`、`git remote origin`、`rules/`、`skills/`、`agents/`、`hooks.json`、`tests/` 與 `install.sh`。
+- 一鍵產出包含 CI/Release/License Badges、架構樹、組件矩陣、雙層動態路徑調用範例、安裝指南、測試驗證與 SHA-256 校驗指引的標準 `README.md`。
+
+### 4. 發布全流程管理 (`github-release-manager`)
 - 提供 `notes`、`hash`、`tag` 三合一發布輔助 CLI。
 - 嚴格預檢 Working Tree 狀態，防範 Dirty 狀態誤發 Tag。
 
-### 4. 底層硬性安全守門 (`PreToolUse Hook`)
+### 5. 底層硬性安全守門 (`PreToolUse Hook`)
 - **Force Push 零容忍**：硬性阻斷 `git push --force` / `-f` / `--force-with-lease`，守護遠端協作歷史。
 - **機密外洩防護**：提交（`git commit`）前主動掃描暫存區，攔截 `.env`、私鑰與 GitHub Token 洩漏。
 - **Pre-Push 單元測試守門**：在推送（`git push`）前自動執行本地單元測試，測試未全綠前阻斷推送。
@@ -65,6 +72,9 @@ python3 "$PLUGIN_ROOT/skills/github-repo-init/scripts/repo_ctl.py" --name <repo-
 
 # 注入雙軌 CI/CD 流水線
 python3 "$PLUGIN_ROOT/skills/github-workflow-gen/scripts/workflow_gen.py"
+
+# 自動生成標準 README.md
+python3 "$PLUGIN_ROOT/skills/github-readme-gen/scripts/readme_gen.py" --target .
 
 # 版本發布管理
 python3 "$PLUGIN_ROOT/skills/github-release-manager/scripts/release_helper.py" tag v1.0.0 --push
@@ -92,17 +102,15 @@ python3 run_tests.py
 
 ## 安裝指南 (Installation)
 
-### 方法 1：全域安裝（推薦）
-將專案複製或軟連結至全域外掛目錄：
 ```bash
-ln -s /path/to/antigravity_github_devops ~/.gemini/config/plugins/github-devops
-```
+# 全域安裝（預設複製至 ~/.gemini/config/plugins/github-devops）
+./install.sh --global
 
-### 方法 2：單一工作區本地安裝
-在目標專案根目錄下：
-```bash
-mkdir -p .agents/plugins
-ln -s /path/to/antigravity_github_devops .agents/plugins/github-devops
+# 開發模式軟連結安裝
+./install.sh --global --symlink
+
+# 僅安裝至當前專案工作區（.agents/plugins/github-devops）
+./install.sh --workspace
 ```
 
 ---

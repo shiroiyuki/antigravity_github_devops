@@ -30,5 +30,5 @@ python3 "$RELEASE_HELPER" tag v1.0.0 -m "Release v1.0.0" [--push]
    自動抓取前一個 Tag 至當前 HEAD 的非 Merge Commits，徹底擺脫 GitHub 原生 PR 自動生成在無 PR 時僅產生空洞對比連結的困境。
 2. **開源供應鏈防偽 (Supply Chain Integrity)**：
    產出標準雙空格格式 `<hash>  <filename>` 的 `.sha256` 檔案，讓使用者與 CI 系統可直接透過 `sha256sum -c` 進行確定性無人值守驗證。
-3. **安全防呆發布**：
-   建立 Tag 前主動檢測工作區狀態，嚴禁在 dirty 狀態下誤發版本標籤。
+3. **安全防呆發布與人工確認閘門**：
+   建立 Tag 前主動檢測工作區狀態，嚴禁在 dirty 狀態下誤發版本標籤；執行 `git push origin v*` 正式發布 GitHub Release 前，須先向使用者確認版號與變更摘要。
