@@ -56,6 +56,18 @@ class TestReadmeGen(unittest.TestCase):
         self.assertIn("agy plugin validate . --strict", content)
         self.assertIn("sha256sum -c", content)
 
+    def test_scan_and_render_general_repo_with_docs_and_agents_md(self):
+        (self.test_dir / "AGENTS.md").write_text("# Agents\n\n- Run `pytest`\n", encoding="utf-8")
+        (self.test_dir / "docs").mkdir()
+        (self.test_dir / "docs" / "architecture.md").write_text("# Architecture\n", encoding="utf-8")
+        (self.test_dir / "LICENSE").write_text("MIT\n", encoding="utf-8")
+
+        out_file = readme_gen.generate_readme(self.test_dir, force=True)
+        content = out_file.read_text(encoding="utf-8")
+        self.assertIn("[AGENTS.md](AGENTS.md)", content)
+        self.assertIn("[docs/architecture.md](docs/architecture.md)", content)
+        self.assertNotIn("agy plugin validate", content)
+
 
 if __name__ == "__main__":
     unittest.main()

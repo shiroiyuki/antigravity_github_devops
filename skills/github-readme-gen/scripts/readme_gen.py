@@ -119,6 +119,11 @@ def scan_project(target_dir: Path) -> dict:
     has_install = (target_dir / "install.sh").is_file()
     has_run_tests = (target_dir / "run_tests.py").is_file()
     validators = sorted(str(p.relative_to(target_dir)) for p in (target_dir / "scripts").glob("validate*.py")) if (target_dir / "scripts").is_dir() else []
+    docs = sorted(str(p.relative_to(target_dir)) for p in (target_dir / "docs").rglob("*.md")) if (target_dir / "docs").is_dir() else []
+    agent_docs = [
+        rel for rel in ("AGENTS.md", "CLAUDE.md", "GEMINI.md", ".agents/AGENTS.md", ".agents/rules/AGENTS.md", ".claude/CLAUDE.md")
+        if (target_dir / rel).is_file()
+    ]
 
     return {
         "is_plugin": bool(plugin_meta),
@@ -131,6 +136,8 @@ def scan_project(target_dir: Path) -> dict:
         "skills": skills,
         "rules": rules,
         "agents": agents,
+        "docs": docs,
+        "agent_docs": agent_docs,
         "has_hooks": has_hooks,
         "has_ci": has_ci,
         "has_install": has_install,
@@ -163,6 +170,10 @@ def build_tree_lines(meta: dict) -> List[str]:
         for idx, s in enumerate(meta["skills"]):
             branch = "└──" if idx == len(meta["skills"]) - 1 else "├──"
             lines.append(f"│   {branch} {s['dir']}/")
+    if meta["docs"]:
+        lines.append("├── docs/                            # 人類技術文件與指南")
+    for adoc in meta["agent_docs"]:
+        lines.append(f"├── {adoc:<32} # AI Agent 工程操作規範")
     if meta["has_install"]:
         lines.append("├── install.sh                       # 一鍵部署安裝腳本")
     if meta["has_run_tests"]:
@@ -224,6 +235,14 @@ def render_readme(meta: dict) -> str:
         for a in meta["agents"]:
             extra.append(f"- **Agent** `agents/{a['dir']}/agent.md` (`model: {a['model']}`): {a['description']}")
         sections.append("\n".join(extra) + "\n\n---\n")
+
+    if meta["docs"] or meta["agent_docs"]:
+        doc_lines = ["## 文件與開發指引 (Documentation & AI Guidelines)\n"]
+        for d in meta["docs"]:
+            doc_lines.append(f"- [{d}]({d})")
+        for adoc in meta["agent_docs"]:
+            doc_lines.append(f"- [{adoc}]({adoc}) — AI coding, modification & testing conventions")
+        sections.append("\n".join(doc_lines) + "\n\n---\n")
 
     if meta["is_plugin"]:
         pname = meta["plugin_name"]

@@ -185,6 +185,36 @@ class TestDevopsGuard(unittest.TestCase):
             reason = devops_guard.check_pre_push_tests("git push origin main", tmp_dir)
             self.assertEqual(reason, "")
 
+    def test_docs_and_agents_guard_catches_casing_frontmatter_and_local_md(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            subprocess.run(["git", "init"], cwd=tmp_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            (tmp_path / ".agent").mkdir()
+            (tmp_path / ".agent" / "Agents.md").write_text("---\ntrigger: always_on\n---\n# Bad\n", encoding="utf-8")
+            (tmp_path / "CLAUDE.local.md").write_text("local\n", encoding="utf-8")
+            subprocess.run(["git", "add", ".agent/Agents.md", "CLAUDE.local.md"], cwd=tmp_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            decision, reason = devops_guard.evaluate_docs_and_agents_guard("git commit -m 'docs'", tmp_dir)
+            self.assertEqual(decision, "force_ask")
+            self.assertIn("AGENTS.md", reason)
+            self.assertIn("YAML Frontmatter", reason)
+            self.assertIn("CLAUDE.local.md", reason)
+
+    def test_docs_sync_reminder_on_structural_push_without_docs(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            subprocess.run(["git", "init"], cwd=tmp_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=tmp_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            (tmp_path / "scripts").mkdir()
+            (tmp_path / "scripts" / "new_tool.py").write_text("print('hi')\n", encoding="utf-8")
+            subprocess.run(["git", "add", "scripts/new_tool.py"], cwd=tmp_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(["git", "commit", "-m", "add tool"], cwd=tmp_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            decision, reason = devops_guard.evaluate_docs_and_agents_guard("git push origin main", tmp_dir)
+            self.assertEqual(decision, "force_ask")
+            self.assertIn("README.md", reason)
+
 
 if __name__ == "__main__":
     unittest.main()

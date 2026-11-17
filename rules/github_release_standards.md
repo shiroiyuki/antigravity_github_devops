@@ -80,3 +80,19 @@ description: "當建立 GitHub 遠端倉庫、設定 GitHub Actions CI/CD 流水
 2. **發布人工確認閘門 (Human-in-the-Loop Release Gate)**：
    - 建立並推送 `v*` Tag 會立即觸發遠端 CI 打包資產並正式發布 GitHub Release，屬於對外交付動作。
    - **未經使用者明確確認前，嚴禁擅自執行 `git push origin v*`**；發起確認前應先說明目標倉庫、預計 Tag 版號與透過 `release_helper.py notes` 提取之變更摘要，獲使用者同意後方可執行發布。
+
+---
+
+### 8. 跨工具三層文件與 AI 指引分工標準 (Agents / Human Docs / README)
+
+為同時相容 **OpenAI `AGENTS.md` 開放標準**、**Anthropic Claude Code (`CLAUDE.md`)** 與 **Google Antigravity (`.agents/AGENTS.md` / `GEMINI.md`)**，所有專案文件必須嚴格維持三層分離：
+
+1. **AI Agent 工程指引 (`AGENTS.md` / `CLAUDE.md` / `GEMINI.md`)**：
+   - 通用專案優先將單一真相來源置於倉庫根目錄 **`AGENTS.md`**（全大寫檔名，切勿寫成 `Agents.md`）；若需橋接 Claude Code，可在根目錄建立 `CLAUDE.md` 單行寫入 `@AGENTS.md`；Antigravity 工作區專屬常駐規則可置於 `.agents/rules/AGENTS.md` 或 `.agents/AGENTS.md`。
+   - 內容僅聚焦「如何建置、修改、驗證與執行單元測試」，**嚴禁加入 YAML Frontmatter (`---`)**、**大小必須 ≤ 24,000 bytes**（且建議精簡 `< 200` 行）。
+   - 個人本地覆蓋檔 `CLAUDE.local.md` 必須加入 `.gitignore`，禁止提交至共享倉庫。
+2. **人類深度技術文件 (`docs/*.md`)**：
+   - 存放架構決策（ADR）、協議細節與維運手冊，避免直接放入常駐規則佔用 Agent Context 預算。
+3. **專案門面總覽 (`README.md`)**：
+   - 面向人類讀者提供完整專案介紹、Preview、安裝與測試總覽，並連結至 `docs/` 與 `AGENTS.md`。
+   - 結構變更或新功能交付前，可使用 `github-docs-guard`（`doc_audit.py --target . --strict`）檢查佔位符、斷鏈與 AI 指引規範。

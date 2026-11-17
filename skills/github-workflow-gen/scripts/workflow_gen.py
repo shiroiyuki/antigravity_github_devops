@@ -63,6 +63,67 @@ jobs:
             python scripts/validate.py
           fi
 
+      - name: Validate Docs & Agent Instructions
+        run: |
+          python - << 'PY'
+          import re, sys
+          from pathlib import Path
+          from urllib.parse import unquote
+
+          root = Path(".")
+          errors = []
+          readme = root / "README.md"
+          if not readme.is_file() or not readme.read_text(encoding="utf-8", errors="ignore").strip():
+              errors.append("README.md is missing or empty.")
+          else:
+              txt = readme.read_text(encoding="utf-8", errors="ignore")
+              for ph in ("<your-username>", "<owner>", "<your-org>"):
+                  if ph in txt:
+                      errors.append(f"README.md contains unreplaced placeholder: {ph}")
+              if re.search(r"github\.com[:/][^/\s]+/<repo-name>", txt, re.I):
+                  errors.append("README.md contains unreplaced repository URL placeholder: <repo-name>")
+
+          for sub in ("", ".agents", ".agents/rules", ".agent", ".agent/rules", ".claude"):
+              d = root / sub if sub else root
+              if not d.is_dir():
+                  continue
+              for f in d.iterdir():
+                  if f.is_file() and f.name.lower() in ("agents.md", "claude.md", "gemini.md") and f.name not in ("AGENTS.md", "CLAUDE.md", "GEMINI.md"):
+                      errors.append(f"{f} has non-standard casing; use uppercase filename.")
+
+          for rel in ("AGENTS.md", "AGENTS.override.md", "CLAUDE.md", "GEMINI.md", ".agents/AGENTS.md", ".agents/rules/AGENTS.md", ".agent/AGENTS.md", ".agent/rules/AGENTS.md", ".claude/CLAUDE.md"):
+              p = root / rel
+              if p.is_file():
+                  raw = p.read_bytes()
+                  txt = raw.decode("utf-8", errors="ignore")
+                  if re.match(r"^---\s*\r?\n.*?\r?\n---", txt, re.DOTALL):
+                      errors.append(f"{rel} must not contain YAML frontmatter.")
+                  if len(raw) > 24000:
+                      errors.append(f"{rel} exceeds 24000-byte limit ({len(raw)} bytes).")
+
+          fence_re = re.compile(r"```.*?```", re.DOTALL)
+          link_re = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
+          md_targets = [readme] if readme.is_file() else []
+          if (root / "docs").is_dir():
+              md_targets.extend(sorted((root / "docs").rglob("*.md")))
+          for md in md_targets:
+              cleaned = fence_re.sub("", md.read_text(encoding="utf-8", errors="ignore"))
+              for raw_target in link_re.findall(cleaned):
+                  t = raw_target.strip().split()[0].strip("<>")
+                  if not t or t.startswith("#") or re.match(r"^(?:https?|mailto|ftp|file|tel|data):", t, re.I):
+                      continue
+                  rel_path = unquote(t.split("#", 1)[0].split("?", 1)[0])
+                  if rel_path:
+                      dest = (root / rel_path.lstrip("/")) if rel_path.startswith("/") else (md.parent / rel_path).resolve()
+                      if not dest.exists():
+                          errors.append(f"{md}: broken local link -> {rel_path}")
+
+          if errors:
+              print("\n".join(f"::error::{e}" for e in errors))
+              sys.exit(1)
+          print("Docs & agent instructions check passed.")
+          PY
+
   release:
     name: GitHub Release & Asset Packaging
     needs: test

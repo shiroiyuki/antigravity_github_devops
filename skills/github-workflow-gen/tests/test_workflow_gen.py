@@ -34,6 +34,7 @@ class TestWorkflowGen(unittest.TestCase):
         self.assertIn("compileall", content)
         self.assertIn("Run Unit Tests", content)
         self.assertIn("Validate Standards", content)
+        self.assertIn("Validate Docs & Agent Instructions", content)
         self.assertIn("Generate Release Notes from Commits", content)
         self.assertIn("sha256sum", content)
         self.assertIn("generate_release_notes: true", content)

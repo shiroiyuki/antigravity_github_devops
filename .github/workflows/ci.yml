@@ -52,6 +52,9 @@ jobs:
             python scripts/validate.py
           fi
 
+      - name: Validate Docs & Agent Instructions
+        run: python skills/github-docs-guard/scripts/doc_audit.py --target . --strict
+
   release:
     name: GitHub Release & Asset Packaging
     needs: test

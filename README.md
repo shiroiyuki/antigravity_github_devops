@@ -15,18 +15,21 @@
 antigravity_github_devops/
 ├── plugin.json                 # 外掛套件清單 (Metadata & Display)
 ├── assets/logo.svg             # 外掛圖示資產
+├── docs/
+│   └── development.md          # 人類與 AI 開發維護指引（避免根目錄 AGENTS.md 與外掛載入衝突）
 ├── hooks.json                  # PreToolUse 守護鉤子宣告 (Matcher: run_command)
 ├── hooks/
-│   └── devops_guard.py         # 底層安全防線 (Force-push, 敏感機密, Pre-push 測試)
+│   └── devops_guard.py         # 底層安全與文件守門 (Force-push, 機密, AGENTS/Doc 規範, Pre-push 測試)
 ├── rules/
-│   └── github_release_standards.md # 發布規範、README 標準與供應鏈安全準則 (Trigger: model_decision)
+│   └── github_release_standards.md # 發布規範、三層文件分工與供應鏈安全準則 (Trigger: model_decision)
 ├── agents/
 │   └── devops-engineer/
 │       └── agent.md            # DevOps 專業工位人設 (Model: flash, Subagent)
 ├── skills/
 │   ├── github-repo-init/       # 零 CLI 依賴 REST API 建倉技能
-│   ├── github-workflow-gen/    # 標準雙軌 CI/CD 生成器技能
-│   ├── github-readme-gen/      # 標準 README 門面與架構文件生成器技能
+│   ├── github-workflow-gen/    # 標準雙軌 CI/CD（含文件與 AI 指引檢查）生成器技能
+│   ├── github-readme-gen/      # 標準 README 門面與專案架構文件生成器技能
+│   ├── github-docs-guard/      # 跨工具 AGENTS.md / CLAUDE.md / docs / README 三層稽核與生成技能
 │   └── github-release-manager/ # 版本發布管理與 SHA-256 校驗技能
 ├── install.sh                  # 一鍵全域 / 工作區 / 軟連結安裝腳本
 └── run_tests.py                # 統一多模組單元測試驅動器
@@ -45,17 +48,18 @@ antigravity_github_devops/
 - 自動打包發布資產，動態生成相容 `sha256sum -c` 的 `.tar.gz.sha256` 數位指紋檔案。
 - 動態提取雙標籤間 Commit 清單，徹底解決無 PR 時 Release 說明空洞的 GitHub 官方缺陷。
 
-### 3. 標準 README 門面生成器 (`github-readme-gen`)
-- 自動掃描 `plugin.json`、`git remote origin`、`rules/`、`skills/`、`agents/`、`hooks.json`、`tests/` 與 `install.sh`。
-- 一鍵產出包含 CI/Release/License Badges、架構樹、組件矩陣、雙層動態路徑調用範例、安裝指南、測試驗證與 SHA-256 校驗指引的標準 `README.md`。
+### 3. 標準 README 門面與跨工具文件守護 (`github-readme-gen` / `github-docs-guard`)
+- `github-readme-gen` 自動掃描 `plugin.json`、`git remote origin`、`rules/`、`skills/`、`agents/`、`docs/`、`AGENTS.md` / `CLAUDE.md` 與測試入口生成標準 `README.md`。
+- `github-docs-guard` 依據 OpenAI `AGENTS.md` 開放標準、Claude Code `CLAUDE.md` 與 Antigravity 規範，稽核 `AGENTS.md`（禁 Frontmatter、`<= 24KB`、大寫檔名）、`docs/` 斷鏈與 `README.md` 佔位符，並可一鍵生成根目錄 `AGENTS.md`（含 `@AGENTS.md` Claude 橋接）。
 
 ### 4. 發布全流程管理 (`github-release-manager`)
 - 提供 `notes`、`hash`、`tag` 三合一發布輔助 CLI。
 - 嚴格預檢 Working Tree 狀態，防範 Dirty 狀態誤發 Tag。
 
-### 5. 底層硬性安全守門 (`PreToolUse Hook`)
+### 5. 底層硬性安全與文件守門 (`PreToolUse Hook`)
 - **Force Push 零容忍**：硬性阻斷 `git push --force` / `-f` / `--force-with-lease`，守護遠端協作歷史。
 - **機密外洩防護**：提交（`git commit`）前主動掃描暫存區，攔截 `.env`、私鑰與 GitHub Token 洩漏。
+- **AI 指引與文件同步守門**：攔截提示 `Agents.md` 錯誤大小寫、誤加 Frontmatter、`CLAUDE.local.md` 誤提交，並於結構性推送未更新文件時提醒確認。
 - **Pre-Push 單元測試守門**：在推送（`git push`）前自動執行本地單元測試，測試未全綠前阻斷推送。
 
 ---
@@ -76,6 +80,9 @@ python3 "$PLUGIN_ROOT/skills/github-workflow-gen/scripts/workflow_gen.py"
 # 自動生成標準 README.md
 python3 "$PLUGIN_ROOT/skills/github-readme-gen/scripts/readme_gen.py" --target .
 
+# 稽核或初始化跨工具 AGENTS.md / docs / README
+python3 "$PLUGIN_ROOT/skills/github-docs-guard/scripts/doc_audit.py" --target . --strict
+
 # 版本發布管理
 python3 "$PLUGIN_ROOT/skills/github-release-manager/scripts/release_helper.py" tag v1.0.0 --push
 ```
@@ -84,7 +91,7 @@ python3 "$PLUGIN_ROOT/skills/github-release-manager/scripts/release_helper.py" t
 
 ## 單元測試驗證 (Unit Tests)
 
-本外掛具備完整的白箱單元測試覆蓋：
+開發指引與規範細節請參閱 [docs/development.md](docs/development.md)。本外掛具備完整的白箱單元測試覆蓋：
 
 ```bash
 python3 run_tests.py

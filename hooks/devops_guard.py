@@ -422,6 +422,108 @@ def check_secret_leak(cmd: str, cwd: str) -> str:
     return reason
 
 
+def _collect_push_name_status(repo_root: Path) -> List[Tuple[str, str]]:
+    """收集即將推送的變更狀態 [(status, path)]"""
+    diff_range = None
+    for candidate in ("@{u}..HEAD", "origin/main..HEAD"):
+        probe = subprocess.run(
+            ["git", "rev-parse", "--verify", candidate.split("..")[0]],
+            cwd=str(repo_root),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=3,
+        )
+        if probe.returncode == 0:
+            diff_range = candidate
+            break
+
+    cmd_args = ["git", "diff", "--name-status", diff_range] if diff_range else ["git", "show", "--name-status", "--format=", "HEAD"]
+    res = subprocess.run(
+        cmd_args,
+        cwd=str(repo_root),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=5,
+    )
+    entries: List[Tuple[str, str]] = []
+    if res.returncode == 0:
+        for line in res.stdout.splitlines():
+            parts = line.split("\t")
+            if len(parts) >= 2:
+                entries.append((parts[0].strip(), parts[-1].strip()))
+    return entries
+
+
+def evaluate_docs_and_agents_guard(cmd: str, cwd: str) -> Tuple[str, str]:
+    """檢查 AGENTS.md / CLAUDE.md / GEMINI.md 規範與結構變更時的文件同步提醒"""
+    is_commit = bool(re.search(r"\bgit\b.*\bcommit\b", cmd))
+    is_push = bool(re.search(r"\bgit\b.*\bpush\b", cmd) and "--dry-run" not in cmd)
+    if not is_commit and not is_push:
+        return "allow", ""
+
+    repo_root = resolve_target_git_root(cmd, cwd)
+    if repo_root is None:
+        return "allow", ""
+
+    try:
+        changed_files, _ = collect_git_diff(repo_root, is_push=is_push)
+    except Exception:
+        return "allow", ""
+
+    reasons: List[str] = []
+    canonical_upper = {
+        "agents.md": "AGENTS.md",
+        "agents.override.md": "AGENTS.override.md",
+        "claude.md": "CLAUDE.md",
+        "gemini.md": "GEMINI.md",
+    }
+
+    for f in changed_files:
+        norm = f.strip().replace("\\", "/")
+        fname = Path(norm).name
+        low = fname.lower()
+
+        if low == "claude.local.md":
+            reasons.append(f"偵測到個人覆蓋檔 `{norm}`（建議加入 .gitignore，不提交至共享倉庫）")
+            continue
+
+        expected = canonical_upper.get(low)
+        if expected:
+            if fname != expected:
+                reasons.append(f"`{norm}` 檔名大小寫不符開放標準，請改為全大寫 `{expected}`")
+            fpath = repo_root / norm
+            if fpath.is_file():
+                raw = fpath.read_bytes()
+                txt = raw.decode("utf-8", errors="ignore")
+                if re.match(r"^---\s*\r?\n.*?\r?\n---", txt, re.DOTALL):
+                    reasons.append(f"`{norm}` 誤含 YAML Frontmatter (`---`)；AGENTS.md / CLAUDE.md / GEMINI.md 應為純 Markdown")
+                if len(raw) > 24000:
+                    reasons.append(f"`{norm}` 大小 {len(raw)} bytes 超過 24,000 bytes 上限")
+
+    if is_push:
+        status_entries = _collect_push_name_status(repo_root)
+        doc_touched = any(
+            Path(p).name in ("README.md", "AGENTS.md", "AGENTS.override.md", "CLAUDE.md", "GEMINI.md")
+            or p.startswith("docs/")
+            for _, p in status_entries
+        )
+        structural_change = any(
+            st[:1] in ("A", "D")
+            and any(p.startswith(prefix) for prefix in ("scripts/", "bin/", "src/", "skills/", "agents/", "hooks/", "tests/"))
+            for st, p in status_entries
+        )
+        if structural_change and not doc_touched:
+            reasons.append("本次推送包含新增或刪除程式/測試模組，但未同步更新 `README.md`、`docs/` 或 `AGENTS.md`")
+
+    if reasons:
+        return (
+            "force_ask",
+            "【文件與 AI 指引確認】偵測到以下需要注意事項，確認繼續嗎：\n- " + "\n- ".join(dict.fromkeys(reasons)),
+        )
+    return "allow", ""
+
+
 def check_pre_push_tests(cmd: str, cwd: str) -> str:
     """檢查 git push 時目標倉庫本地單元測試是否通過"""
     if not re.search(r"\bgit\b.*\bpush\b", cmd):
@@ -508,9 +610,18 @@ def main():
             sys.stdout.write(json.dumps({"decision": "deny", "reason": test_reason}, ensure_ascii=False))
             return
 
-        # 4. 疑似敏感資料跳人工確認（force_ask）
+        # 4. 文件與 AI 指引規範檢查（force_ask）
+        doc_decision, doc_reason = evaluate_docs_and_agents_guard(cmd, cwd)
+
+        # 5. 疑似敏感資料或文件提醒跳人工確認（force_ask）
+        if sec_decision == "force_ask" and doc_decision == "force_ask":
+            sys.stdout.write(json.dumps({"decision": "force_ask", "reason": f"{sec_reason}\n\n{doc_reason}"}, ensure_ascii=False))
+            return
         if sec_decision == "force_ask":
             sys.stdout.write(json.dumps({"decision": "force_ask", "reason": sec_reason}, ensure_ascii=False))
+            return
+        if doc_decision == "force_ask":
+            sys.stdout.write(json.dumps({"decision": "force_ask", "reason": doc_reason}, ensure_ascii=False))
             return
 
         sys.stdout.write(json.dumps({"decision": "allow"}))
